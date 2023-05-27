@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  // googleId     String?
+  // facebookId   String?
+  name         String
+  passwordHash String?
+  phoneNumber  String?
+  picture      String?
+  verified     Boolean @default(false)
+  role         Role
+  addresses      Address[]
+  shoppingCart   ShoppingCart?
+  orders         Order[]
+  reviews        UserReview[]
+  paymentMethods UserPaymentMethod[]
+}
+
+enum Role {
+  ADMIN
+  BASIC
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  isDefault    Boolean
+  unitNumber   Int
+  streetNumber Int
+  addressLine1 String
+  addressLine2 String
+  city         String
+  region       String
+  potalCode    Int
+  country      Country? @relation(fields: [countryId], references: [id])
+  countryId    String?
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  orders       Order[]
+}
+
+model Country {
+  id        String    @id @default(uuid())
+  name      String
+  addresses Address[]
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  description String
+  image       String
+  category    Category      @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  prouctItems ProductItem[]
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String
+  products Product[]
+
+  parentCategoryId String?
+  parentCategory   Category?  @relation("ParentCategory", fields: [parentCategoryId], references: [id])
+  childrens        Category[] @relation("ParentCategory")
+
+  variations Variation[]
+
+  promotions Promotion[]
+}
+
+model Variation {
+  id         String            @id @default(uuid())
+  name       String
+  category   Category          @relation(fields: [categoryId], references: [id])
+  categoryId String
+  options    VariationOption[]
+}
+
+model VariationOption {
+  id           String        @id @default(uuid())
+  value        String
+  variation    Variation     @relation(fields: [variationId], references: [id])
+  variationId  String
+  productItems ProductItem[]
+}
+
+model ProductItem {
+  id               String             @id @default(uuid())
+  product          Product            @relation(fields: [productId], references: [id])
+  productId        String
+  SKU              String
+  qtyInStock       Int
+  productImage     String
+  price            Int
+  variationOptions VariationOption[]
+  relatedCartItems ShoppingCartItem[] //just to relate the shopping cart item to it
+  orderLines       OrderLine[]
+}
+
+model ShoppingCart {
+  id                String             @id @default(uuid())
+  user              User               @relation(fields: [userId], references: [id])
+  userId            String             @unique
+  shoppingCartItems ShoppingCartItem[]
+}
+
+model ShoppingCartItem {
+  id             String       @id @default(uuid())
+  cart           ShoppingCart @relation(fields: [shoppingCartId], references: [id])
+  shoppingCartId String
+  productItem    ProductItem  @relation(fields: [productItemId], references: [id])
+  productItemId  String
+  quantity       Int
+}
+
+model Order {
+  id                  String            @id @default(uuid())
+  user                User              @relation(fields: [userId], references: [id])
+  userId              String
+  orderDate           DateTime          @default(now())
+  shippingAddress     Address           @relation(fields: [shippingAddressId], references: [id])
+  shippingAddressId   String
+  shippingMethod      ShippingMethod    @relation(fields: [shippingMethodId], references: [id])
+  shippingMethodId    String
+  orderTotal          Int
+  orderStatus         OrderStatus       @relation(fields: [orderStatusId], references: [id])
+  orderStatusId       String
+  paymentMethod       UserPaymentMethod @relation(fields: [userPaymentMethodId], references: [id])
+  userPaymentMethodId String
+  orderLines          OrderLine[]
+}
+
+model OrderStatus {
+  id     String  @id @default(uuid())
+  status String
+  orders Order[]
+}
+
+model ShippingMethod {
+  id     String  @id @default(uuid())
+  name   String
+  price  String
+  orders Order[]
+}
+
+//an order has many products and these products are stored in a table called OrderLine
+model OrderLine {
+  id            String      @id @default(uuid())
+  productItem   ProductItem @relation(fields: [productItemId], references: [id])
+  productItemId String
+  order         Order       @relation(fields: [orderId], references: [id])
+  orderId       String      @unique
+  quantity      Int
+  price         Int
+  userReview    UserReview?
+}
+
+model UserReview {
+  id             String    @id @default(uuid())
+  user           User      @relation(fields: [userId], references: [id])
+  userId         String    @unique
+  comment        String
+  rating         Int
+  orderedProduct OrderLine @relation(fields: [orderLineId], references: [id])
+  orderLineId    String    @unique
+}
+
+model Promotion {
+  id          String     @id @default(uuid())
+  name        String
+  description String
+  dicountRate Int //percentage 10%
+  startDate   DateTime
+  endDate     DateTime
+  categories  Category[]
+}
+
+model UserPaymentMethod {
+  id            String      @id @default(uuid())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String      @unique
+  paymentType   PaymentType @relation(fields: [paymentTypeId], references: [id])
+  paymentTypeId String
+  provider      String
+  accountNumber Int
+  expiryDate    String
+  isDefault     Boolean
+  orders        Order[]
+}
+
+model PaymentType {
+  id                 String              @id @default(uuid())
+  userPaymentMethods UserPaymentMethod[]
+  value              String
+}
